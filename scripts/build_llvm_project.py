@@ -58,11 +58,8 @@ def generate_buildoptions(arguments):
     f'-DCMAKE_TOOLCHAIN_FILE={arguments.toolchain}'
   ]
 
-  if sys.platform == 'win32' and platform.uname()[4].lower() == 'arm64':
-    base_cmake_args.append('-GNMake Makefiles')
-  else:
-    generator = 'Ninja' if sys.platform == 'win32' else 'Unix Makefiles'
-    base_cmake_args.append(f'-G{generator}')
+  generator = 'Ninja' if sys.platform == 'win32' else 'Unix Makefiles'
+  base_cmake_args.append(f'-G{generator}')
 
   if arguments.install_prefix:
     install_root = Path(arguments.install_prefix)
