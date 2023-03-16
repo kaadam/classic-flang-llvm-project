@@ -40,6 +40,7 @@ jobs:
           # We're using a specific version of macOS due to:
           # https://github.com/actions/virtual-environments/issues/5900
           - macOS-11
+          - windows-latest
     steps:
       - name: Setup Windows
         if: startsWith(matrix.os, 'windows')
@@ -53,12 +54,17 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install Ninja
         uses: llvm/actions/install-ninja@main
       # actions/checkout deletes any existing files in the new git directory,
       # so this needs to either run before ccache-action or it has to use
       # clean: false.
+      - name: Setup psutil
+        if: startsWith(matrix.os, 'windows')
+        run: pip install psutil
+      - name: Check tools
+        run: python --version
       - uses: actions/checkout@v3
         with:
           fetch-depth: 250
@@ -74,6 +80,13 @@ jobs:
           # fit under the 10 GB limit.
           max-size: 500M
           key: ${{ matrix.os }}
+      - name: Test clang Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
+          python .\scripts\build_llvm_project.py -d build --cmake-param=-DLLVM_ENABLE_ASSERTIONS=ON -j $pcount
+          cd build
+          ninja check-all
       - name: Test clang macOS
         if: ${{ matrix.os == 'macOS-11'}}
         env:

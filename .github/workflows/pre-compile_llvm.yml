@@ -5,9 +5,11 @@ on:
   push:
     branches:
       - 'release_*x'
+      - 'action'
 
 jobs:
   build:
+    name: Ubuntu Linux
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -80,3 +82,44 @@ jobs:
         with:
           name: llvm_build_${{ matrix.target }}_${{ matrix.cc }}_${{ matrix.version }}_${{ steps.extract_branch.outputs.branch }}
           path: llvm_build.tar.gz
+
+  build-win64:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Windows
+        uses: llvm/actions/setup-windows@main
+        with:
+          arch: amd64
+
+      - name: Setup Ninja
+        uses: llvm/actions/install-ninja@main
+
+      - name: Check tools
+        run: |
+          git --version
+          cmake --version
+          clang --version
+          ninja --version
+          python --version
+
+      - name: Extract branch name
+        id: extract_branch
+        run: echo "branch=$(("${{ github.ref }}" -split "/")[-1])" >> $env:GITHUB_OUTPUT
+
+      - name: Build llvm
+        shell: pwsh
+        run: |
+          $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
+          python .\scripts\build_llvm_project.py -d build --cmake-param=-DLLVM_ENABLE_ASSERTIONS=ON -j $pcount
+          cd ..
+          7z a llvm-build-win64.7z $pwd/classic-flang-llvm-project/
+          Copy-Item llvm-build-win64.7z -Destination $pwd/classic-flang-llvm-project/
+
+      - name: Upload llvm
+        uses: actions/upload-artifact@v3
+        with:
+          name: llvm_build_win64_clangcl_${{ steps.extract_branch.outputs.branch }}
+          path: ${{ github.workspace }}\llvm-build-win64.7z
